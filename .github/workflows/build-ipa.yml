@@ -11,19 +11,38 @@ jobs:
     steps:
       - name: 拉取源码
         uses: actions/checkout@v4
-      - name: 编译 iOS App
+
+      - name: 自动定位工程并编译
         run: |
-          cd 湖鹿网络科技iOS
-          xcodebuild -project 湖鹿网络科技.xcodeproj -scheme 湖鹿网络科技 -configuration Release -destination 'generic/platform=iOS' -derivedDataPath build CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO
+          set -e
+          PROJ=$(find . -name "*.xcodeproj" -maxdepth 4 | head -1)
+          PROJ_DIR=$(dirname "$PROJ")
+          echo "工程目录: $PROJ_DIR"
+          cd "$PROJ_DIR"
+          XPROJ=$(ls -d *.xcodeproj | head -1)
+          SCHEME=$(xcodebuild -list -project "$XPROJ" 2>/dev/null | awk '/Schemes:/{f=1;next} f && NF{print $1; exit}')
+          echo "工程: $XPROJ / scheme: $SCHEME"
+          xcodebuild -project "$XPROJ" -scheme "$SCHEME" \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO
+
       - name: 打包成 IPA
         run: |
-          cd 湖鹿网络科技iOS
+          set -e
+          PROJ=$(find . -name "*.xcodeproj" -maxdepth 4 | head -1)
+          PROJ_DIR=$(dirname "$PROJ")
+          cd "$PROJ_DIR"
           mkdir -p Payload
           APP=$(ls -d build/Build/Products/Release-iphoneos/*.app | head -1)
+          echo "打包: $APP"
           cp -r "$APP" Payload/
           zip -r "湖癔网络科技-V2.19-未签名.ipa" Payload
+          echo "完成: $PWD/湖癔网络科技-V2.19-未签名.ipa"
+
       - name: 上传 IPA 产物
         uses: actions/upload-artifact@v4
         with:
           name: 湖癔网络科技-V2.19-未签名IPA
-          path: 湖鹿网络科技iOS/湖癔网络科技-V2.19-未签名.ipa
+          path: '**/湖癔网络科技-V2.19-未签名.ipa'
